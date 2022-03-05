@@ -1,5 +1,6 @@
 from datetime import datetime
 import hashlib
+import imp
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from markdown import markdown
@@ -7,6 +8,7 @@ import bleach
 from flask import current_app, request, url_for
 from flask_login import UserMixin, AnonymousUserMixin
 from app import db, login_manager
+from app.exceptions import ValidationError
 
 
 class Permission:
@@ -274,8 +276,8 @@ class Post(db.Model):
             'body_html':self.body_html,
             'date_created': self.date_created,
             'author_url' : url_for('api.get_user',id=self.author.id),
-            'comment_url': url_for('api.get_post_comment',id=self.id),
-            'comment_count': self.comments.count()  # its possible to use made up attributes
+            'comment_url': url_for('api.get_post_comments',id=self.id),
+            'comment_count': self.comments.count()
         }
         return json_post
 
@@ -283,7 +285,7 @@ class Post(db.Model):
     def from_json(json_post):
         body = json_post.get('body')
         if not body:
-            raise ValidationError
+            raise ValidationError('post has no body')
         post = Post(body=body)
         return post
     
@@ -310,6 +312,17 @@ class Comment(db.Model):
         target.body_html = bleach.linkify(bleach.clean(
             markdown(value, output_format='html'),
             tags=allowed_tags, strip=True))
+
+     # Serialize Comment Resource to JSON
+    def to_json(self):
+        json_comment = {
+            'url': url_for('api.get_comment',id=self.id),
+            'body_html':self.body_html,
+            'date_created': self.date_created,
+            'author_url' : url_for('api.get_user',id=self.author.id),
+            'post_url': url_for('api.get_post',id=self.post.id)
+        }
+        return json_comment
 
     def __repr__(self):
         return '<Comment %r>' % self.id

@@ -1,5 +1,4 @@
-from urllib import request
-from flask import jsonify, current_app, request, url_for, g
+from flask import jsonify, current_app, url_for, g, request
 from flask_login import current_user
 from app.api.errors import forbidden
 from app.models import Permission, Post, User
@@ -13,15 +12,17 @@ def get_post(id):
     post = Post.query.get_or_404(id)
     return jsonify(post.to_json())
 
-@api.route('/posts')
+@api.route('/posts/')
 def get_posts():
     page = request.args.get('page',1,type=int)
     pagination = Post.query.paginate(
         page,per_page=current_app.config['POSTS_PER_PAGE'],error_out=False)
     posts = pagination.items
-    if posts.has_next:
+    prev = None
+    if pagination.has_prev:
         prev = url_for('api.get_posts',page=page-1)
-    elif posts.has_prev:
+    next = None
+    if pagination.has_next:
         next = url_for('api.get_posts',page=page+1)
     return jsonify({
         'posts': [post.to_json() for post in posts],
@@ -31,20 +32,21 @@ def get_posts():
         })
 
 
-@api.route('/posts',methods=['POST'])
+@api.route('/posts/',methods=['POST'])
+@permission_required(Permission.WRITE)
 def new_post():
     post = Post.from_json(request.json())
+    post.author = g.current_user
     db.session.add(post)
     db.session.commit()
-    return jsonify(post.to_json())
+    return jsonify(post.to_json(),201,{'location':url_for('api.get_post',id=post.id)})
 
 
 @api.route('/posts/<int:id>',methods=['PUT'])
 @permission_required(Permission.WRITE)
 def edit_post(id):
     post = Post.query.get_or_404(id)
-    if not g.current_user==post.author and \
-        not g.current_user.has_permissions(Permission.ADMIN):
+    if g.current_user!=post.author and not g.current_user.can(Permission.ADMIN):
         return forbidden('Insufficient permissions!')
     post.body = request.json.get('body',post.body)
     db.session.commit()
