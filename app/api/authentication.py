@@ -2,7 +2,7 @@ from flask_httpauth import HTTPBasicAuth
 from app.models import User,Post,Comment
 from app.api.errors import unauthorized, forbidden
 from app.api import api
-from flask import jsonify, g
+from flask import jsonify, g, session
 
 auth = HTTPBasicAuth()
 
@@ -14,6 +14,7 @@ def verify_password(email_or_token,password):
     if password == '':
         user = User.verify_auth_token(email_or_token)
         g.current_user = user
+        session.username = user.username
         g.token_used = True
         return user is not None
     user = User.query.filter_by(email=email_or_token).first()

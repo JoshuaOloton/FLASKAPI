@@ -20,5 +20,5 @@ def send_confirmation_email(token,email):
 			"to": [f"{email}"],
 			"subject": "Confirm Your Account",
 			"text": f""" Please follow this link to verify your account
-{url_for("auth.confirm",token=token)} 
+{url_for("auth.confirm",_external=True,token=token)} 
 Please ignore this mail if you did not make the following request."""})

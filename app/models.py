@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from markdown import markdown
 import bleach
-from flask import current_app, request, url_for
+from flask import current_app, request, url_for, g
 from flask_login import UserMixin, AnonymousUserMixin
 from app import db, login_manager
 from app.exceptions import ValidationError
@@ -323,6 +323,14 @@ class Comment(db.Model):
             'post_url': url_for('api.get_post',id=self.post.id)
         }
         return json_comment
+
+    @staticmethod
+    def from_json(json_comment):
+        body = json_comment.get('body')
+        if not body:
+            raise ValidationError('comment has no body') 
+        comment = Comment(body=body)
+        return comment
 
     def __repr__(self):
         return '<Comment %r>' % self.id

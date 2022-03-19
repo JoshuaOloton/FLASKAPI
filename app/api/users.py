@@ -7,8 +7,8 @@ def get_user(id):
     user = User.query.get_or_404(id)
     return jsonify(user.to_json())
 
-@api.route('/user/<int:id>/timeline')
-def get_user_followed_posts(id):
+@api.route('/users/<int:id>/timeline/')
+def get_followed_posts(id):
     user = User.query.get_or_404(id)
     page = request.args.get('page',1)
     pagination = user.followed_posts.paginate(page,per_page=current_app.config['POSTS_PER_PAGE'],error_out=False)
@@ -27,7 +27,7 @@ def get_user_followed_posts(id):
     })
 
 
-@api.route('/user/<int:id>/posts/')
+@api.route('/users/<int:id>/posts/')
 def get_user_posts(id):
     user = User.query.get_or_404(id)
     page = request.args.get('page',1)
@@ -46,7 +46,7 @@ def get_user_posts(id):
         'count': pagination.total
             })
 
-@api.route('/user/<int:id>/comments/')
+@api.route('/users/<int:id>/comments/')
 def get_user_comments(id):
     user = User.query.get_or_404(id)
     page = request.args.get('page',1)

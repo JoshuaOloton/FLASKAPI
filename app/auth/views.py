@@ -1,4 +1,5 @@
-from flask import render_template, redirect, request, url_for, flash
+import json
+from flask import render_template, redirect, request, url_for, flash, make_response, g, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from app.auth import auth
 from app import db
@@ -6,6 +7,8 @@ from app.models import User
 from app.email import send_reset_email, send_confirmation_email
 from app.auth.forms import LoginForm, RegistrationForm, ChangePasswordForm,\
     PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
+from app.api.authentication import verify_password
+from app.api.errors import unauthorized
 
 
 @auth.before_app_request
@@ -28,25 +31,34 @@ def unconfirmed():
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.lower()).first()
-        if user and user.verify_password(form.password.data):
-            login_user(user, form.remember_me.data)
-            next = request.args.get('next')
-            if next is None or not next.startswith('/'):
-                next = url_for('main.index')
-            return redirect(next)
-        flash('Invalid email or password.','success')
-    return render_template('auth/login.html', form=form)
+    # form = LoginForm()
+    # if form.validate_on_submit():
+    #     user = User.query.filter_by(email=form.email.data.lower()).first()
+    #     if user and user.verify_password(form.password.data):
+    #         login_user(user, form.remember_me.data)
+    #         next = request.args.get('next')
+    #         if next is None or not next.startswith('/'):
+    #             next = url_for('main.index')
+    #         return redirect(next)
+    #     flash('Invalid email or password.','success')
+    # return render_template('auth/login.html', form=form)
+
+    if request.authorization:
+        email = request.authorization.username
+        user = User.query.filter_by(email=email).first()
+        password = request.authorization.password
+        if not user or not user.verify_password(password):
+            return unauthorized('Invalid credentials')
+        login_user(user)
+        return make_response('Login Successful!', 200)
 
 
 @auth.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash('You have been logged out.','danger')
-    return redirect(url_for('main.index'))
+    # flash('You have been logged out.','danger')
+    return make_response('You are logged out.',200)
 
 
 @auth.route('/register', methods=['GET', 'POST'])
@@ -69,25 +81,27 @@ def register():
 @login_required
 def confirm(token):
     if current_user.confirmed:
-        return redirect(url_for('main.index'))
+        # return redirect(url_for('main.index'))
+        return jsonify({'message':'user already confirmed!'}), 400
     if current_user.verify_confirm_token(token):
         current_user.confirmed = True
         db.session.commit()
-        flash('You have confirmed your account. Thanks!','success')
-    else:
-        flash('The confirmation link is invalid or has expired.','danger')
-    return redirect(url_for('main.index'))
+        # flash('You have confirmed your account. Thanks!','success')
+    # else:
+    #     flash('The confirmation link is invalid or has expired.','danger')
+    # return redirect(url_for('main.index'))
+
+    return jsonify({'message':'user successfully confirmed!'})
 
 
 @auth.route('/confirm')
 @login_required
 def resend_confirmation():
     token = current_user.generate_confirmation_token()
-    send_confirmation_email(current_user.email, 'Confirm Your Account',
-               'auth/email/confirm', user=current_user, token=token)
-    flash('A new confirmation email has been sent to you by email.')
-    return redirect(url_for('main.index'))
-
+    send_confirmation_email(token=token,email='flaskmail23@gmail.com')
+    # flash('A new confirmation email has been sent to you by email.')
+    # return make_response('A new confirmation email has been sent to your mail.',200)
+    return jsonify({'token':token})
 
 @auth.route('/change-password', methods=['GET', 'POST'])
 @login_required

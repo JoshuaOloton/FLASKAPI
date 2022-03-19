@@ -1,5 +1,4 @@
-from urllib import request, response
-from flask import render_template,jsonify
+from flask import render_template,jsonify, request
 from app.main import main
 
 

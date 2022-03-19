@@ -35,8 +35,7 @@ def get_comments():
 @permission_required(Permission.WRITE)
 def edit_comments(id):
     comment = Comment.query.get_or_404(id)
-    if not g.current_user != comment.author and \
-        not g.current_user.has_permissions(Permission.ADMIN):
+    if g.current_user != comment.author and not g.current_user.can(Permission.ADMIN):
         return forbidden('Insufficient permissions')
     comment.body = request.json.get('body',comment.body)
     db.session.commit()
@@ -49,9 +48,10 @@ def new_comment(id):
     comment = Comment.from_json(request.json)
     comment.author = g.current_user
     comment.post = post
-    db.seesion.add(comment)
+    db.session.add(comment)
     db.session.commit()
-    return jsonify(comment.to_json(),201,{'location':url_for('api.get_comment',id=comment.id)})
+    return jsonify(comment.to_json()), 201, \
+        {'location':url_for('api.get_comment',id=comment.id)}
 
 @api.route('/posts/<int:id>/comments/')
 def get_post_comments(id):
@@ -72,3 +72,13 @@ def get_post_comments(id):
         'next_url': next,
         'count': pagination.total
     })
+
+@api.route('/posts/<int:id>/comments/',methods=['DELETE'])
+@permission_required(Permission.WRITE)
+def delete_comment(id):
+    comment = Comment.query.get_or_404(1336)
+    if comment.author != g.current_user and not g.current_user.can(Permission.ADMIN):
+        return forbidden('Insufficient permissions')
+    db.session.delete(comment)
+    db.session.commit()
+    return jsonify({'message':'comment successfully deleted'})

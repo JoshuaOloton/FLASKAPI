@@ -49,4 +49,4 @@ def comments(count=100):
                 author=u,
                 post=p)
         db.session.add(c)
-        db.session.commit()
+    db.session.commit()
